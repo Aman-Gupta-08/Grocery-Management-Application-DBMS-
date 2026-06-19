@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GroceryMS – Secure Login</title>
+  
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+  
+  <style>
+    /* ── Login Specific Adjustments ── */
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: var(--bg);
+      background-image: var(--bg-gradient);
+    }
+    .login-wrap {
+      width: 100%;
+      max-width: 420px;
+      padding: 1rem;
+    }
+    .login-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 2.5rem 2rem;
+      box-shadow: var(--shadow-lg);
+      animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    .login-logo {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .login-logo .logo-icon {
+      font-size: 3rem;
+      display: block;
+      margin-bottom: 0.5rem;
+      filter: drop-shadow(0 4px 12px rgba(40, 116, 240, 0.4));
+    }
+    .login-logo h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--text-heading);
+      margin: 0;
+      letter-spacing: -0.03em;
+    }
+    .login-logo p {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin: 0.25rem 0 0;
+      font-weight: 500;
+    }
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+    .form-group label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .input-wrap {
+      position: relative;
+    }
+    .input-wrap .input-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+    .input-wrap input {
+      width: 100%;
+      padding: 0.75rem 1rem 0.75rem 2.75rem;
+      border-radius: 12px;
+      border: 1px solid var(--glass-border);
+      background: var(--input-bg);
+      color: var(--text-heading);
+      font-size: 0.95rem;
+      outline: none;
+      transition: var(--transition);
+      box-sizing: border-box;
+    }
+    .input-wrap input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-light);
+      background: rgba(0,0,0,0.1);
+    }
+    .form-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+    .form-row label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .form-row a {
+      font-size: 0.85rem;
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .form-row a:hover {
+      text-decoration: underline;
+    }
+    .btn-login {
+      width: 100%;
+      padding: 0.85rem;
+      border: none;
+      border-radius: 12px;
+      background: var(--primary-gradient);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: var(--transition);
+      letter-spacing: 0.02em;
+      box-shadow: 0 4px 12px rgba(40, 116, 240, 0.2);
+    }
+    .btn-login:hover {
+      background: var(--primary);
+      box-shadow: 0 6px 16px rgba(40, 116, 240, 0.35);
+      transform: translateY(-1px);
+    }
+    .demo-creds {
+      text-align: center;
+      margin-top: 1.5rem;
+      padding: 0.9rem;
+      background: var(--primary-light);
+      border-radius: 12px;
+      border: 1px dashed var(--primary);
+    }
+    .demo-creds p {
+      margin: 0 0 0.25rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .demo-creds strong {
+      font-size: 0.85rem;
+      color: var(--primary);
+      font-weight: 700;
+    }
+    .toast-msg {
+      display: none;
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      font-size: 0.875rem;
+      text-align: center;
+      font-weight: 600;
+    }
+    .toast-msg.error {
+      background: var(--danger-light);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      color: var(--danger);
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">
+      <span class="logo-icon">🛒</span>
+      <h1>GroceryMS</h1>
+      <p>B2B Store Management SaaS</p>
+    </div>
+    
+    <form id="loginForm" novalidate>
+      <div class="form-group">
+        <label>Username</label>
+        <div class="input-wrap">
+          <span class="input-icon">👤</span>
+          <input type="text" id="username" placeholder="Enter username" autocomplete="username">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>Password</label>
+        <div class="input-wrap">
+          <span class="input-icon">🔒</span>
+          <input type="password" id="password" placeholder="Enter password" autocomplete="current-password">
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <label><input type="checkbox" id="rememberMe"> Remember me</label>
+        <a href="#">Forgot password?</a>
+      </div>
+      
+      <button class="btn-login" type="submit">Sign In →</button>
+      <div class="toast-msg" id="loginError">Invalid credentials. Please try again.</div>
+    </form>
+    
+    <div class="demo-creds">
+      <p>Demo credentials</p>
+      <strong>Username: admin &nbsp;|&nbsp; Password: admin123</strong>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Apply saved theme
+  if (localStorage.getItem('theme') === 'light') {
+    document.body.classList.add('light');
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const u = document.getElementById('username').value.trim();
+    const p = document.getElementById('password').value.trim();
+    if (u === 'admin' && p === 'admin123') {
+      document.querySelector('.btn-login').textContent = 'Signing in…';
+      sessionStorage.setItem('groceryms_logged', 'true');
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 600);
+    } else {
+      document.getElementById('loginError').classList.add('error');
+      setTimeout(() => {
+        document.getElementById('loginError').classList.remove('error');
+      }, 3000);
+    }
+  });
+</script>
+
+</body>
+</html>
