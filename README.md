@@ -189,6 +189,22 @@ docker ps
 
 ---
 
+# 🔄 Customer Data Flow
+
+```text
+Add Customer
+      ↓
+Render API
+      ↓
+MySQL Database
+
+Refresh Page
+      ↓
+Data comes back from MySQL
+```
+
+---
+
 # 🌟 Future Enhancements
 
 * JWT Authentication

@@ -248,6 +248,71 @@ const DB = {
   }
 };
 
+/* ── Render API Configurations & Helpers ── */
+const API_BASE_URL = 'https://groceryms-api.onrender.com'; // Change this to your Render API base URL
+
+const API = {
+  async getCustomers() {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/customers`);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      console.error('Error fetching customers from Render API:', e);
+      return null;
+    }
+  },
+  async addCustomer(customer) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/customers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(customer)
+      });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      console.error('Error adding customer to Render API:', e);
+      throw e;
+    }
+  },
+  async updateCustomer(id, customer) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/customers/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(customer)
+      });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      console.error('Error updating customer via Render API:', e);
+      throw e;
+    }
+  },
+  async deleteCustomer(id) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/customers/${id}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return true;
+    } catch (e) {
+      console.error('Error deleting customer via Render API:', e);
+      throw e;
+    }
+  }
+};
+
+async function syncCustomersWithAPI() {
+  const apiCustomers = await API.getCustomers();
+  if (apiCustomers && Array.isArray(apiCustomers)) {
+    const dbData = DB.get();
+    dbData.customers = apiCustomers;
+    DB.set(dbData);
+  }
+}
+
 /* ── Pagination Class ── */
 class Paginator {
   constructor({ data, pageSize = 8, renderFn, containerId, controlsId }) {
@@ -595,8 +660,34 @@ function renderDashboardView() {
 
 /* 2. Customers View */
 let customerEditId = null;
-function renderCustomersView() {
+async function renderCustomersView() {
   document.getElementById('pageTitle').innerHTML = '👥 Customer Directory';
+
+  // Show loading indicator
+  const viewport = document.getElementById('viewport');
+  if (viewport) {
+    viewport.innerHTML = `
+      <div class="card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 1rem;">
+        <div class="spinner" style="width: 40px; height: 40px; border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Fetching customer data from Render API...</p>
+      </div>
+    `;
+
+    if (!document.getElementById('spinner-style')) {
+      const style = document.createElement('style');
+      style.id = 'spinner-style';
+      style.innerHTML = `@keyframes spin { to { transform: rotate(360deg); } }`;
+      document.head.appendChild(style);
+    }
+  }
+
+  // Fetch latest data from database via Render API
+  try {
+    await syncCustomersWithAPI();
+  } catch (e) {
+    console.warn('Could not sync customers with Render API, using local fallback.', e);
+  }
+
   const data = DB.get();
 
   const activeCount = new Set(data.orders.map(o => o.customerId)).size;
@@ -709,7 +800,7 @@ window.openEditCustomerModal = function(id) {
   Modal.open('customerModal');
 };
 
-window.saveCustomer = function() {
+window.saveCustomer = async function() {
   const name = document.getElementById('cust_name').value.trim();
   const email = document.getElementById('cust_email').value.trim();
   const phone = document.getElementById('cust_phone').value.trim();
@@ -725,25 +816,52 @@ window.saveCustomer = function() {
   }
 
   const db = DB.get();
-  if (customerEditId) {
-    const idx = db.customers.findIndex(c => c.id === customerEditId);
-    if (idx !== -1) {
-      db.customers[idx] = { ...db.customers[idx], name, email, phone, address };
-      Toast.show('Customer updated successfully.', 'success');
+  try {
+    if (customerEditId) {
+      const updatedCustomer = { name, email, phone, address };
+      // Call Render API to update in MySQL Database
+      await API.updateCustomer(customerEditId, updatedCustomer);
+      
+      const idx = db.customers.findIndex(c => c.id === customerEditId);
+      if (idx !== -1) {
+        db.customers[idx] = { ...db.customers[idx], ...updatedCustomer };
+      }
+      Toast.show('Customer updated successfully in MySQL via API.', 'success');
+    } else {
+      const newCust = {
+        id: DB.nextId(db.customers),
+        name, email, phone, address,
+        joined: new Date().toISOString().split('T')[0]
+      };
+      // Call Render API to add in MySQL Database
+      await API.addCustomer(newCust);
+      
+      db.customers.push(newCust);
+      Toast.show('Customer added successfully to MySQL via API.', 'success');
     }
-  } else {
-    const newCust = {
-      id: DB.nextId(db.customers),
-      name, email, phone, address,
-      joined: new Date().toISOString().split('T')[0]
-    };
-    db.customers.push(newCust);
-    Toast.show('Customer added successfully.', 'success');
+  } catch (error) {
+    console.error('API Error: ', error);
+    Toast.show('API error: ' + error.message + '. Saving locally.', 'warning');
+    
+    // Fallback to local storage if API fails
+    if (customerEditId) {
+      const idx = db.customers.findIndex(c => c.id === customerEditId);
+      if (idx !== -1) {
+        db.customers[idx] = { ...db.customers[idx], name, email, phone, address };
+      }
+    } else {
+      const newCust = {
+        id: DB.nextId(db.customers),
+        name, email, phone, address,
+        joined: new Date().toISOString().split('T')[0]
+      };
+      db.customers.push(newCust);
+    }
   }
 
   DB.set(db);
   Modal.close('customerModal');
-  renderCustomersView();
+  await renderCustomersView();
 };
 
 let customerDeleteId = null;
@@ -754,13 +872,22 @@ window.openDeleteCustomerConfirm = function(id) {
   Modal.open('deleteModal');
 };
 
-window.confirmDeleteCustomer = function() {
+window.confirmDeleteCustomer = async function() {
   const db = DB.get();
-  db.customers = db.customers.filter(c => c.id !== customerDeleteId);
+  try {
+    // Call Render API to delete from MySQL Database
+    await API.deleteCustomer(customerDeleteId);
+    db.customers = db.customers.filter(c => c.id !== customerDeleteId);
+    Toast.show('Customer deleted successfully from MySQL via API.', 'info');
+  } catch (error) {
+    console.error('API Error: ', error);
+    Toast.show('API error: ' + error.message + '. Deleting locally.', 'warning');
+    db.customers = db.customers.filter(c => c.id !== customerDeleteId);
+  }
+  
   DB.set(db);
   Modal.close('deleteModal');
-  Toast.show('Customer deleted successfully.', 'info');
-  renderCustomersView();
+  await renderCustomersView();
 };
 
 /* 3. Products View */
